@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { useOrganization } from '@/providers';
 import { queryKeys } from '@/constants';
 import { createOrganization } from '@/services';
-import { isApiError, isValidationError } from '@/lib/api';
+import { getApiErrorMessage, isApiError, isValidationError } from '@/lib/api';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -118,7 +118,7 @@ export default function CreateOrganizationPage() {
                     form.setError(field as keyof CreateOrgFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });

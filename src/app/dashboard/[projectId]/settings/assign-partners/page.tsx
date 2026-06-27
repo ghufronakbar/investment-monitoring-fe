@@ -13,7 +13,7 @@ import { useProject, useOrganization } from '@/providers';
 import { queryKeys } from '@/constants';
 import { assignGovPartners } from '@/services';
 import { getRegisteredOrganizations } from '@/services/iam/organization.service';
-import { isApiError } from '@/lib/api';
+import { getApiErrorMessage, isApiError } from '@/lib/api';
 import { getOrgRoleDisplayName } from '@/lib/role-helpers';
 
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,7 @@ export default function AssignPartnersPage() {
         },
         onError: (error) => {
             if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });

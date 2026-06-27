@@ -1,24 +1,10 @@
 import type { TaskItem } from "@/types";
+import { getErrorMessage, WBS_ERROR_MESSAGES } from "./error-messages";
 
-export const WBS_ERROR_MESSAGES: Record<string, string> = {
-  WBS_EMPTY: "WBS is empty. Add at least one task.",
-  TASK_CANNOT_PARENT_ITSELF: "A task cannot be its own parent.",
-  PARENT_TASK_NOT_FOUND: "Selected parent task was not found.",
-  PARENT_TASK_NOT_IN_CONTRACT: "Selected parent task belongs to another contract.",
-  CHILD_DEADLINE_EXCEEDS_PARENT:
-    "Child task deadline cannot exceed its parent deadline.",
-  WBS_CYCLE_DETECTED: "This parent selection would create a WBS cycle.",
-  ORPHAN_TASK: "WBS contains a task whose parent no longer exists.",
-  TOTAL_ROOT_WEIGHT_NOT_100: "Total root task weight should equal 100%.",
-  TOTAL_ROOT_WEIGHT_EXCEEDS_100: "Total root task weight exceeds 100%.",
-  TOTAL_LEAF_WEIGHT_NOT_100: "Total leaf task weight should equal 100%.",
-  TOTAL_LEAF_WEIGHT_EXCEEDS_100: "Total leaf task weight exceeds 100%.",
-  SIBLING_WEIGHT_EXCEEDS_100:
-    "Total weight among sibling tasks exceeds 100%.",
-};
+export { WBS_ERROR_MESSAGES };
 
 export const getWBSErrorMessage = (code: string): string => {
-  return WBS_ERROR_MESSAGES[code] || code;
+  return getErrorMessage(code);
 };
 
 export const flattenTasks = (tasks: TaskItem[]): TaskItem[] => {

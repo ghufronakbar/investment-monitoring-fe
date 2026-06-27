@@ -3,6 +3,7 @@
  */
 import axios, { type AxiosError } from "axios";
 import type { BaseResponse } from "@/types";
+import { getErrorMessage } from "./error-messages";
 
 const REFRESH_AUTH_ERROR_CODES = new Set([
   "INVALID_REFRESH_TOKEN",
@@ -116,6 +117,10 @@ export const getValidationErrors = (
 
   const data = error.response?.data as BaseResponse | undefined;
   return data?.validationErrors ?? null;
+};
+
+export const getApiErrorMessage = (error: unknown): string => {
+  return getErrorMessage(getApiErrorCode(error));
 };
 
 export const createApiErrorFromAxiosError = (

@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { useProject, useOrganization } from '@/providers';
 import { queryKeys } from '@/constants';
 import { configureSettings } from '@/services';
-import { isApiError, isValidationError } from '@/lib/api';
+import { getApiErrorMessage, isApiError, isValidationError } from '@/lib/api';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,7 +93,7 @@ export default function ProjectSettingsPage() {
                     form.setError(field as keyof SettingsFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });

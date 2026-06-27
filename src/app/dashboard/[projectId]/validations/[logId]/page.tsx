@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { useProject, useOrganization } from '@/providers';
 import { queryKeys } from '@/constants';
 import { getProgressLogs, validateProgress } from '@/services';
-import { isApiError, isValidationError } from '@/lib/api';
+import { getApiErrorMessage, isApiError, isValidationError } from '@/lib/api';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -101,7 +101,7 @@ export default function ValidateProgressPage() {
                     form.setError(field as keyof ValidateFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });

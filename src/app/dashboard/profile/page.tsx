@@ -14,7 +14,7 @@ import Link from 'next/link';
 
 import { queryKeys } from '@/constants';
 import { getProfile, updateProfile, changePassword } from '@/services';
-import { isApiError, isValidationError } from '@/lib/api';
+import { getApiErrorMessage, isApiError, isValidationError } from '@/lib/api';
 import { getOrgRoleDisplayName, getMemberRoleDisplayName } from '@/lib/role-helpers';
 
 import { Button } from '@/components/ui/button';
@@ -113,7 +113,7 @@ export default function ProfilePage() {
                     profileForm.setError(field as keyof ProfileFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });
@@ -132,7 +132,7 @@ export default function ProfilePage() {
                     passwordForm.setError(field as keyof PasswordFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });

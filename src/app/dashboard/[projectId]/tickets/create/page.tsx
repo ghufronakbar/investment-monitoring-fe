@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { useProject, useOrganization } from '@/providers';
 import { queryKeys, invalidationMap } from '@/constants';
 import { createTicket, getTasks } from '@/services';
-import { isApiError, isValidationError } from '@/lib/api';
+import { getApiErrorMessage, isApiError, isValidationError } from '@/lib/api';
 import type { TaskItem } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -118,7 +118,7 @@ export default function CreateTicketPage() {
                     form.setError(field as keyof TicketFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });

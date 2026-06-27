@@ -11,6 +11,7 @@ export {
   ApiError,
   createApiErrorFromAxiosError,
   getApiErrorCode,
+  getApiErrorMessage,
   getRetryAfterSeconds,
   getValidationErrors,
   isApiError,

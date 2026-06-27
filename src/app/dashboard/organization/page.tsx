@@ -15,7 +15,7 @@ import { useOrganization } from '@/providers';
 import { queryKeys } from '@/constants';
 import { getOrganization, getOrganizationMembers, inviteMember, updateOrganization } from '@/services';
 import { getOrgRoleDisplayName, getMemberRoleDisplayName } from '@/lib/role-helpers';
-import { isApiError, isValidationError } from '@/lib/api';
+import { getApiErrorMessage, isApiError, isValidationError } from '@/lib/api';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -131,7 +131,7 @@ export default function OrganizationPage() {
                     inviteForm.setError(field as keyof InviteFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });
@@ -164,7 +164,7 @@ export default function OrganizationPage() {
                     editForm.setError(field as keyof EditOrgFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });

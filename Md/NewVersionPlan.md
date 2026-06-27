@@ -574,16 +574,16 @@ src/lib/error-messages.ts
 
 Checklist:
 
-- [ ] Buat map error domain backend ke label user-facing.
-- [ ] Group per module:
+- [x] Buat map error domain backend ke label user-facing.
+- [x] Group per module:
   - auth;
   - policy;
   - WBS;
   - finance;
   - upload;
   - tracker.
-- [ ] Tetap tampilkan fallback kode backend jika mapping belum ada.
-- [ ] Integrasikan ke form error/toast.
+- [x] Tetap tampilkan fallback kode backend jika mapping belum ada.
+- [x] Integrasikan ke form error/toast.
 
 Contoh:
 
@@ -599,6 +599,17 @@ Definition of done:
 
 - user tidak hanya melihat kode mentah untuk error utama;
 - developer tetap bisa melihat code backend.
+
+Status implementasi:
+
+- `src/lib/error-messages.ts` ditambahkan sebagai centralized UI error mapping untuk auth, policy, WBS, finance, upload, tracker, dan common backend errors.
+- `getErrorMessage(code)` mengembalikan pesan user-facing jika mapping tersedia, dan tetap fallback ke kode backend asli jika belum ada mapping.
+- `src/lib/api-errors.ts` sekarang punya `getApiErrorMessage(error)` agar form/toast bisa memakai mapping yang sama tanpa membaca `responseMessage` langsung.
+- `src/lib/api.ts` me-re-export `getApiErrorMessage`, sehingga import lama dari `@/lib/api` tetap konsisten.
+- `src/lib/wbs.ts` dan `src/lib/finance.ts` memakai map terpusat, tetapi tetap mempertahankan wrapper domain `getWBSErrorMessage` dan `getFinanceErrorMessage`.
+- `src/components/ui/file-uploader.tsx` memakai map terpusat untuk error upload seperti `FILE_EMPTY`, `INVALID_FILE_TYPE`, `FILE_TOO_LARGE_5MB_MAX`, dan error metadata upload.
+- Toast form utama untuk login, organization, profile, project, settings assignment, ticket, task progress, dan validation detail sudah memakai `getApiErrorMessage(error)`.
+- `npm run build` pass.
 
 ## 13. Tahap 10: Testing dan Build Frontend
 
@@ -660,6 +671,6 @@ Urutan ini sengaja menaruh WebSocket setelah REST contract siap, karena realtime
 - [ ] Query invalidation mencakup dashboard/cache-sensitive data.
 - [ ] WebSocket provider tersedia dan optional.
 - [ ] Realtime event hanya trigger refetch/invalidation.
-- [ ] Error domain utama punya mapping UI.
+- [x] Error domain utama punya mapping UI.
 - [ ] `npm run lint` pass.
 - [ ] `npm run build` pass.

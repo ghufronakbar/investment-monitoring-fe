@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { useProject, useOrganization } from '@/providers';
 import { queryKeys, invalidationMap } from '@/constants';
 import { getTicketDetail, addTicketLog, assignTicket, closeTicket, getRegisteredOrganizations } from '@/services';
-import { isApiError, isValidationError } from '@/lib/api';
+import { getApiErrorMessage, isApiError, isValidationError } from '@/lib/api';
 import { formatSLASeconds, slaStatusConfig } from '@/lib/sla';
 import type { TicketStatus, AddTicketLogRequest } from '@/types';
 
@@ -150,7 +150,7 @@ export default function TicketDetailPage() {
                     form.setError(field as keyof LogFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });
@@ -167,7 +167,7 @@ export default function TicketDetailPage() {
         },
         onError: (error) => {
             if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });
@@ -183,7 +183,7 @@ export default function TicketDetailPage() {
         },
         onError: (error) => {
             if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });

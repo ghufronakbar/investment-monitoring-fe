@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/use-auth';
 import { checkEmail, setPassword } from '@/services';
 import {
+    getApiErrorMessage,
     getRetryAfterSeconds,
     isApiError,
     isRateLimitError,
@@ -133,7 +134,7 @@ export default function LoginPage() {
             }
 
             if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             } else {
                 toast.error('An error occurred');
             }
@@ -154,7 +155,7 @@ export default function LoginPage() {
                     setPasswordForm.setError(field as keyof SetPasswordFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });
@@ -192,7 +193,7 @@ export default function LoginPage() {
                 if (error.responseMessage === 'INVALID_CREDENTIALS') {
                     toast.error('Invalid password');
                 } else {
-                    toast.error(error.responseMessage);
+                    toast.error(getApiErrorMessage(error));
                 }
             }
         }

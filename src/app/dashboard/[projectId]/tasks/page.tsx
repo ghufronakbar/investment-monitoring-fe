@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { useProject, useOrganization } from '@/providers';
 import { queryKeys } from '@/constants';
 import { getTasks, submitProgress } from '@/services';
-import { isApiError, isValidationError } from '@/lib/api';
+import { getApiErrorMessage, isApiError, isValidationError } from '@/lib/api';
 import type { TaskItem } from '@/types';
 
 import { Progress } from '@/components/ui/progress';
@@ -108,7 +108,7 @@ export default function ContractorTasksPage() {
                     form.setError(field as keyof ProgressFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getApiErrorMessage(error));
             }
         },
     });

@@ -10,6 +10,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { uploadSingle, uploadMultiple } from '@/services';
 import { isApiError } from '@/lib/api';
+import { getErrorMessage } from '@/lib/error-messages';
 import { cn } from '@/lib/utils';
 import type { UploadOptions, UploadResponse } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -76,23 +77,13 @@ function getFileIcon(format: string) {
     return <FileText className="w-4 h-4 text-red-500" />;
 }
 
-const UPLOAD_ERROR_MESSAGES: Record<string, string> = {
-    FILE_EMPTY: 'The selected file is empty.',
-    FILE_REQUIRED: 'Please select a file to upload.',
-    FILE_TOO_LARGE: 'The selected file is too large.',
-    FILE_TOO_LARGE_5MB_MAX: 'File too large. Maximum 5MB allowed.',
-    INVALID_FILE_TYPE: 'Invalid file type. Only JPG, PNG, and PDF files are allowed.',
-    USER_NOT_MEMBER_OF_ORGANIZATION: 'You are not a member of the selected organization.',
-    ENTITY_TYPE_AND_ENTITY_ID_REQUIRED_TOGETHER: 'Upload entity type and entity ID must be provided together.',
-};
-
 function getUploadErrorMessage(error: unknown): string {
     if (isApiError(error)) {
-        return UPLOAD_ERROR_MESSAGES[error.responseMessage] || error.responseMessage;
+        return getErrorMessage(error.responseMessage);
     }
 
     if (error instanceof Error) {
-        return UPLOAD_ERROR_MESSAGES[error.message] || error.message;
+        return getErrorMessage(error.message);
     }
 
     return 'Failed to upload file';

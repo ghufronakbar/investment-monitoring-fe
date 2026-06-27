@@ -16,6 +16,7 @@ import {
   clearTokens,
 } from "@/lib/auth";
 import type { BaseResponse, RefreshTokenResponse } from "@/types";
+import { getApiErrorCode, isFatalRefreshErrorCode } from "./api-errors";
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
@@ -30,17 +31,36 @@ const apiClient: AxiosInstance = axios.create({
 // Flag to prevent multiple refresh attempts
 let isRefreshing = false;
 // Queue of pending requests during token refresh
-let refreshSubscribers: ((token: string) => void)[] = [];
+let refreshSubscribers: {
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}[] = [];
 
 // Subscribe to token refresh
-const subscribeTokenRefresh = (callback: (token: string) => void) => {
-  refreshSubscribers.push(callback);
+const subscribeTokenRefresh = (
+  resolve: (token: string) => void,
+  reject: (error: unknown) => void
+) => {
+  refreshSubscribers.push({ resolve, reject });
 };
 
 // Notify all subscribers with new token
 const onTokenRefreshed = (token: string) => {
-  refreshSubscribers.forEach((callback) => callback(token));
+  refreshSubscribers.forEach(({ resolve }) => resolve(token));
   refreshSubscribers = [];
+};
+
+const onTokenRefreshFailed = (error: unknown) => {
+  refreshSubscribers.forEach(({ reject }) => reject(error));
+  refreshSubscribers = [];
+};
+
+const redirectToLogin = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.location.assign("/login");
 };
 
 // Request interceptor: attach access token
@@ -71,13 +91,13 @@ apiClient.interceptors.response.use(
     ) {
       if (isRefreshing) {
         // Wait for token refresh and retry
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
           subscribeTokenRefresh((token: string) => {
             if (originalRequest.headers) {
               originalRequest.headers.Authorization = `Bearer ${token}`;
             }
             resolve(apiClient(originalRequest));
-          });
+          }, reject);
         });
       }
 
@@ -87,7 +107,7 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = getRefreshToken();
         const response = await axios.post<BaseResponse<RefreshTokenResponse>>(
-          `${ENV.API_URL}/iam/auth/refresh-token`,
+          `${ENV.API_URL}/api/iam/auth/refresh-token`,
           { refreshToken }
         );
 
@@ -102,10 +122,15 @@ apiClient.interceptors.response.use(
           }
           return apiClient(originalRequest);
         }
+
+        throw new Error("Failed to refresh token");
       } catch (refreshError) {
-        // Refresh failed, clear tokens and redirect to login
-        clearTokens();
-        // In Next.js, redirect will be handled by the calling code
+        const errorCode = getApiErrorCode(refreshError);
+        if (isFatalRefreshErrorCode(errorCode)) {
+          clearTokens();
+          redirectToLogin();
+        }
+        onTokenRefreshFailed(refreshError);
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

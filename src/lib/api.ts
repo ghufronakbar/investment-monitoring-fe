@@ -2,44 +2,23 @@
  * API utilities
  * Type-safe API call wrappers with error handling
  */
-import { AxiosError } from "axios";
+import axios from "axios";
 import { apiClient } from "./axios";
 import type { BaseResponse } from "@/types";
+import { ApiError, createApiErrorFromAxiosError } from "./api-errors";
 
-/**
- * API Error class for typed error handling
- */
-export class ApiError extends Error {
-  public code: number;
-  public responseMessage: string;
-  public validationErrors: Record<string, string> | null;
-  public requestId: string;
-
-  constructor(response: BaseResponse) {
-    super(response.metaData.message);
-    this.name = "ApiError";
-    this.code = response.metaData.code;
-    this.responseMessage = response.responseMessage;
-    this.validationErrors = response.validationErrors;
-    this.requestId = response.metaData.requestId;
-  }
-}
-
-/**
- * Check if error is an API error
- */
-export const isApiError = (error: unknown): error is ApiError => {
-  return error instanceof ApiError;
-};
-
-/**
- * Check if error is a validation error (has field errors)
- */
-export const isValidationError = (
-  error: unknown
-): error is ApiError & { validationErrors: Record<string, string> } => {
-  return isApiError(error) && error.validationErrors !== null;
-};
+export {
+  ApiError,
+  createApiErrorFromAxiosError,
+  getApiErrorCode,
+  getRetryAfterSeconds,
+  getValidationErrors,
+  isApiError,
+  isFatalRefreshErrorCode,
+  isRateLimitError,
+  isValidationError,
+  type ApiRateLimitError,
+} from "./api-errors";
 
 /**
  * Generic API request handler
@@ -65,8 +44,11 @@ export async function apiRequest<T>(
     }
 
     // Handle Axios errors
-    if (error instanceof AxiosError && error.response?.data) {
-      throw new ApiError(error.response.data as BaseResponse);
+    if (axios.isAxiosError<BaseResponse>(error)) {
+      const apiError = createApiErrorFromAxiosError(error);
+      if (apiError) {
+        throw apiError;
+      }
     }
 
     // Re-throw unknown errors

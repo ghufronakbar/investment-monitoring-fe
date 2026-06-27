@@ -3,9 +3,9 @@
  * API calls for authentication endpoints
  */
 import { api } from "@/lib/api";
-import { apiClient } from "@/lib/axios";
-import { setTokens, clearTokens } from "@/lib/auth";
+import { setTokens, clearTokens, getRefreshToken } from "@/lib/auth";
 import { ENV } from "@/constants";
+import axios from "axios";
 import type {
   BaseResponse,
   CheckEmailResponse,
@@ -15,6 +15,9 @@ import type {
   SetPasswordResponse,
   RefreshTokenRequest,
   RefreshTokenResponse,
+  LogoutRequest,
+  LogoutResponse,
+  RevokeAllResponse,
 } from "@/types";
 
 /**
@@ -60,8 +63,8 @@ export const refreshToken = async (
   data: RefreshTokenRequest
 ): Promise<RefreshTokenResponse> => {
   // Use raw axios to avoid interceptor loop
-  const response = await apiClient.post<BaseResponse<RefreshTokenResponse>>(
-    `${ENV.API_URL}/iam/auth/refresh-token`,
+  const response = await axios.post<BaseResponse<RefreshTokenResponse>>(
+    `${ENV.API_URL}/api/iam/auth/refresh-token`,
     data
   );
 
@@ -74,8 +77,29 @@ export const refreshToken = async (
 };
 
 /**
- * Logout - clear all tokens
+ * Logout current refresh token.
+ * Local tokens are always cleared, even when the network request fails.
  */
-export const logout = (): void => {
-  clearTokens();
+export const logout = async (): Promise<LogoutResponse | null> => {
+  const refreshToken = getRefreshToken();
+
+  try {
+    if (!refreshToken) {
+      return null;
+    }
+
+    const payload: LogoutRequest = { refreshToken };
+    return await api.post<LogoutResponse>("/iam/auth/logout", payload);
+  } finally {
+    clearTokens();
+  }
+};
+
+/**
+ * Revoke all refresh tokens for the user bound to this refresh token.
+ */
+export const revokeAllRefreshTokens = async (
+  refreshToken: string
+): Promise<RevokeAllResponse> => {
+  return api.post<RevokeAllResponse>("/iam/auth/revoke-all", { refreshToken });
 };

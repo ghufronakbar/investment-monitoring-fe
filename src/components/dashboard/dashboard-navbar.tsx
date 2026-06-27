@@ -25,11 +25,16 @@ import { getMemberRoleDisplayName, getOrgRoleDisplayName } from '@/lib/role-help
 export function DashboardNavbar() {
     const router = useRouter();
     const pathname = usePathname();
-    const { user, logout } = useAuth();
+    const { user, logout, revokeAllSessions } = useAuth();
     const { activeOrganization, organizations, setActiveOrganization, orgRole, isAdmin } = useOrganization();
 
-    const handleLogout = () => {
-        logout();
+    const handleLogout = async () => {
+        await logout();
+        router.push('/login');
+    };
+
+    const handleRevokeAllSessions = async () => {
+        await revokeAllSessions();
         router.push('/login');
     };
 
@@ -166,6 +171,10 @@ export function DashboardNavbar() {
                             <LogOut className="w-4 h-4 mr-2" />
                             Logout
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleRevokeAllSessions} className="text-red-600 cursor-pointer">
+                            <LogOut className="w-4 h-4 mr-2" />
+                            Logout all sessions
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
@@ -174,4 +183,3 @@ export function DashboardNavbar() {
 }
 
 export default DashboardNavbar;
-

@@ -14,8 +14,16 @@ import {
 } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { STORAGE_KEYS, queryKeys, invalidationMap } from '@/constants';
-import { isAuthenticated as checkAuth } from '@/lib/auth';
-import { login as loginApi, logout as logoutApi } from '@/services';
+import {
+    clearTokens,
+    getRefreshToken,
+    isAuthenticated as checkAuth,
+} from '@/lib/auth';
+import {
+    login as loginApi,
+    logout as logoutApi,
+    revokeAllRefreshTokens,
+} from '@/services';
 import type { User, Membership, LoginRequest, LoginResponse } from '@/types';
 
 // Check if we're in browser environment
@@ -30,7 +38,8 @@ interface AuthContextValue {
     isLoading: boolean;
     isLoggingIn: boolean;
     login: (data: LoginRequest) => Promise<LoginResponse>;
-    logout: () => void;
+    logout: () => Promise<void>;
+    revokeAllSessions: () => Promise<void>;
     setActiveMembership: (membership: Membership) => void;
 }
 
@@ -125,10 +134,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     );
 
     // Logout function
-    const logout = useCallback(() => {
-        // Clear tokens
-        logoutApi();
-
+    const clearAuthState = useCallback(() => {
         // Clear local state
         setUser(null);
         setMemberships([]);
@@ -145,6 +151,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Clear all cached queries
         queryClient.clear();
     }, [queryClient]);
+
+    // Logout function
+    const logout = useCallback(async () => {
+        try {
+            await logoutApi();
+        } catch {
+            // Local logout must continue even if the backend is unreachable.
+        } finally {
+            clearAuthState();
+        }
+    }, [clearAuthState]);
+
+    const revokeAllSessions = useCallback(async () => {
+        const refreshToken = getRefreshToken();
+
+        try {
+            if (refreshToken) {
+                await revokeAllRefreshTokens(refreshToken);
+            }
+        } catch {
+            // Clear this browser session even when revoke-all cannot reach the API.
+        } finally {
+            clearTokens();
+            clearAuthState();
+        }
+    }, [clearAuthState]);
 
     // Set active membership
     const setActiveMembership = useCallback((membership: Membership) => {
@@ -168,6 +200,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isLoggingIn: loginMutation.isPending,
         login,
         logout,
+        revokeAllSessions,
         setActiveMembership,
     };
 

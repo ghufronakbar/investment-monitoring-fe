@@ -20,6 +20,7 @@ export {
   setPassword,
   refreshToken,
   logout,
+  revokeAllRefreshTokens,
 } from "./iam/auth.service";
 
 export {

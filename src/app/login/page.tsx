@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,12 @@ import { toast } from 'sonner';
 
 import { useAuth } from '@/hooks/use-auth';
 import { checkEmail, setPassword } from '@/services';
-import { isApiError, isValidationError } from '@/lib/api';
+import {
+    getRetryAfterSeconds,
+    isApiError,
+    isRateLimitError,
+    isValidationError,
+} from '@/lib/api';
 import type { EmailStatus } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -24,6 +29,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Schemas
 const emailSchema = z.object({
@@ -55,6 +61,21 @@ export default function LoginPage() {
 
     const [step, setStep] = useState<Step>('email');
     const [email, setEmail] = useState('');
+    const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
+
+    const isRateLimited = rateLimitSeconds > 0;
+
+    useEffect(() => {
+        if (rateLimitSeconds <= 0) {
+            return;
+        }
+
+        const timer = window.setInterval(() => {
+            setRateLimitSeconds((current) => Math.max(0, current - 1));
+        }, 1000);
+
+        return () => window.clearInterval(timer);
+    }, [rateLimitSeconds]);
 
     // Email form
     const emailForm = useForm<EmailFormData>({
@@ -73,6 +94,17 @@ export default function LoginPage() {
         resolver: zodResolver(setPasswordSchema),
         defaultValues: { password: '', confirmPassword: '' },
     });
+
+    const applyRateLimit = (error: unknown): boolean => {
+        if (!isRateLimitError(error)) {
+            return false;
+        }
+
+        const retryAfter = getRetryAfterSeconds(error) ?? 60;
+        setRateLimitSeconds(retryAfter);
+        toast.error(`Too many attempts. Try again in ${retryAfter} seconds.`);
+        return true;
+    };
 
     // Check email mutation
     const checkEmailMutation = useMutation({
@@ -96,6 +128,10 @@ export default function LoginPage() {
             }
         },
         onError: (error) => {
+            if (applyRateLimit(error)) {
+                return;
+            }
+
             if (isApiError(error)) {
                 toast.error(error.responseMessage);
             } else {
@@ -125,17 +161,29 @@ export default function LoginPage() {
 
     // Handle email submit
     const onEmailSubmit = (data: EmailFormData) => {
+        if (isRateLimited) {
+            return;
+        }
+
         setEmail(data.email);
         checkEmailMutation.mutate(data.email);
     };
 
     // Handle password submit (login)
     const onPasswordSubmit = async (data: PasswordFormData) => {
+        if (isRateLimited) {
+            return;
+        }
+
         try {
             await login({ email, password: data.password });
             toast.success('Login successful!');
             router.push('/dashboard');
         } catch (error) {
+            if (applyRateLimit(error)) {
+                return;
+            }
+
             if (isValidationError(error)) {
                 Object.entries(error.validationErrors).forEach(([field, message]) => {
                     passwordForm.setError(field as keyof PasswordFormData, { message });
@@ -181,6 +229,14 @@ export default function LoginPage() {
                 </CardHeader>
 
                 <CardContent>
+                    {isRateLimited && (
+                        <Alert className="mb-4 border-amber-200 bg-amber-50 text-amber-900">
+                            <AlertDescription>
+                                Too many authentication attempts. Try again in {rateLimitSeconds} seconds.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
                     {/* Email Step */}
                     {step === 'email' && (
                         <form onSubmit={emailForm.handleSubmit(onEmailSubmit)} className="space-y-4">
@@ -191,7 +247,7 @@ export default function LoginPage() {
                                     type="email"
                                     placeholder="name@organization.com"
                                     {...emailForm.register('email')}
-                                    disabled={checkEmailMutation.isPending}
+                                    disabled={checkEmailMutation.isPending || isRateLimited}
                                 />
                                 {emailForm.formState.errors.email && (
                                     <p className="text-sm text-red-500">
@@ -203,7 +259,7 @@ export default function LoginPage() {
                             <Button
                                 type="submit"
                                 className="w-full"
-                                disabled={checkEmailMutation.isPending}
+                                disabled={checkEmailMutation.isPending || isRateLimited}
                             >
                                 {checkEmailMutation.isPending ? (
                                     <>
@@ -232,7 +288,7 @@ export default function LoginPage() {
                                     type="password"
                                     placeholder="Enter your password"
                                     {...passwordForm.register('password')}
-                                    disabled={isLoggingIn}
+                                    disabled={isLoggingIn || isRateLimited}
                                 />
                                 {passwordForm.formState.errors.password && (
                                     <p className="text-sm text-red-500">
@@ -245,7 +301,7 @@ export default function LoginPage() {
                                 <Button type="button" variant="outline" onClick={goBack} className="flex-1">
                                     Back
                                 </Button>
-                                <Button type="submit" className="flex-1" disabled={isLoggingIn}>
+                                <Button type="submit" className="flex-1" disabled={isLoggingIn || isRateLimited}>
                                     {isLoggingIn ? (
                                         <>
                                             <Spinner className="mr-2 h-4 w-4" />

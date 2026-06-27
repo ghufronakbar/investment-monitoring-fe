@@ -47,3 +47,18 @@ export interface RefreshTokenResponse {
   accessToken: string;
   refreshToken: string;
 }
+
+// Logout request
+export interface LogoutRequest {
+  refreshToken: string;
+}
+
+// Logout response
+export interface LogoutResponse {
+  message: string;
+}
+
+// Revoke all refresh tokens response
+export interface RevokeAllResponse {
+  message: string;
+}

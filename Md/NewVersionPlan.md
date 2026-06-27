@@ -325,7 +325,7 @@ src/app/dashboard/[projectId]/tickets/[ticketId]/page.tsx
 
 Checklist:
 
-- [ ] Tambah type:
+- [x] Tambah type:
 
 ```ts
 export type SLAStatus = "ON_TRACK" | "SLA_WARNING" | "SLA_VIOLATED" | "RESOLVED";
@@ -345,26 +345,37 @@ export interface SLAReturn {
 }
 ```
 
-- [ ] Update `Ticket`:
+- [x] Update `Ticket`:
 
 ```ts
 sla?: SLAReturn | null;
 ```
 
-- [ ] Ticket list menampilkan compact SLA badge:
+- [x] Ticket list menampilkan compact SLA badge:
   - `ON_TRACK`;
   - `SLA_WARNING`;
   - `SLA_VIOLATED`;
   - `RESOLVED`.
-- [ ] Ticket detail menampilkan:
+- [x] Ticket detail menampilkan:
   - due date;
   - owner org;
   - remaining time;
   - resolved time jika ada.
-- [ ] Null-safe: ticket lama tanpa `sla` tidak boleh crash.
-- [ ] Action UI disesuaikan dengan FSM:
+- [x] Null-safe: ticket lama tanpa `sla` tidak boleh crash.
+- [x] Action UI disesuaikan dengan FSM:
   - closed ticket tidak menampilkan update/assign action yang tidak valid;
   - status change hanya tampil sesuai allowed transition.
+
+Status implementasi:
+
+- `src/types/tracker.ts` sekarang punya `SLAStatus`, `SLAReturn`, dan `Ticket.sla?: SLAReturn | null`.
+- `src/lib/sla.ts` ditambahkan untuk mapping visual SLA badge dan format `remainingSeconds`.
+- Ticket list menampilkan compact SLA badge secara null-safe di sebelah status ticket.
+- Ticket detail menampilkan card SLA berisi status, due date, owner org, remaining time, dan resolved time jika tersedia.
+- Ticket lama tanpa field `sla` tetap menampilkan fallback `No SLA data available`.
+- Assign/reassign disembunyikan untuk `CLOSED`; closed ticket juga tidak menampilkan form update.
+- Dropdown status update hanya menampilkan transisi yang relevan untuk state ticket saat ini.
+- `npm run build` pass.
 
 Definition of done:
 

@@ -16,6 +16,7 @@ import { useProject, useOrganization } from '@/providers';
 import { queryKeys, invalidationMap } from '@/constants';
 import { getTicketDetail, addTicketLog, assignTicket, closeTicket, getRegisteredOrganizations } from '@/services';
 import { isApiError, isValidationError } from '@/lib/api';
+import { formatSLASeconds, slaStatusConfig } from '@/lib/sla';
 import type { TicketStatus, AddTicketLogRequest } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,7 @@ import {
     MessageSquare,
     Send,
     Link as LinkIcon,
+    AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -70,10 +72,22 @@ const statusConfig: Record<TicketStatus, { label: string; variant: 'default' | '
 // Log form schema
 const logSchema = z.object({
     description: z.string().min(5, 'Description must be at least 5 characters'),
-    newStatus: z.enum(['IN_PROGRESS', 'RESOLVED', '']).optional(),
+    newStatus: z.enum(['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', '']).optional(),
 });
 
 type LogFormData = z.infer<typeof logSchema>;
+
+const getStatusOptions = (status: TicketStatus): TicketStatus[] => {
+    if (status === 'CLOSED') {
+        return [];
+    }
+
+    if (status === 'RESOLVED') {
+        return ['IN_PROGRESS'];
+    }
+
+    return ['IN_PROGRESS', 'RESOLVED'].filter((item) => item !== status) as TicketStatus[];
+};
 
 export default function TicketDetailPage() {
     const params = useParams();
@@ -119,6 +133,7 @@ export default function TicketDetailPage() {
     // Check if GOV_PARTNER is assigned to this ticket
     const isAssignedToMe = orgRole === 'GOV_PARTNER' && ticket?.assignedTo?.orgId === orgId;
     const canUpdateStatus = canAddLog && (orgRole === 'EXECUTING_AGENCY' || isAssignedToMe);
+    const statusOptions = ticket ? getStatusOptions(ticket.currentStatus) : [];
 
     // Add log mutation
     const addLogMutation = useMutation({
@@ -176,7 +191,7 @@ export default function TicketDetailPage() {
     const handleAddLog = (data: LogFormData) => {
         addLogMutation.mutate({
             description: data.description,
-            newStatus: data.newStatus === '' ? null : data.newStatus,
+            newStatus: data.newStatus === '' ? null : data.newStatus as TicketStatus,
         });
     };
 
@@ -204,6 +219,7 @@ export default function TicketDetailPage() {
     const config = statusConfig[ticket.currentStatus];
     const isClosed = ticket.currentStatus === 'CLOSED';
     const isResolved = ticket.currentStatus === 'RESOLVED';
+    const slaConfig = ticket.sla ? slaStatusConfig[ticket.sla.status] : null;
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -234,10 +250,10 @@ export default function TicketDetailPage() {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        {canAssign && !isClosed && !ticket.assignedTo && (
+                        {canAssign && !isClosed && (
                             <Button variant="outline" onClick={() => setAssignDialogOpen(true)}>
                                 <UserCheck className="w-4 h-4 mr-2" />
-                                Assign
+                                {ticket.assignedTo ? 'Reassign' : 'Assign'}
                             </Button>
                         )}
                         {canClose && isResolved && (
@@ -369,20 +385,29 @@ export default function TicketDetailPage() {
 
                                     <div className="flex items-center gap-4">
                                         <div className="flex-1">
-                                            <Select
-                                                value={form.watch('newStatus') || ''}
-                                                onValueChange={(v) => form.setValue('newStatus', v as 'IN_PROGRESS' | 'RESOLVED' | '')}
-                                                disabled={addLogMutation.isPending}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="No status change" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="no_change">No status change</SelectItem>
-                                                    <SelectItem value="IN_PROGRESS">Mark In Progress</SelectItem>
-                                                    <SelectItem value="RESOLVED">Mark Resolved</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            {statusOptions.length > 0 ? (
+                                                <Select
+                                                    value={form.watch('newStatus') || ''}
+                                                    onValueChange={(v) => form.setValue('newStatus', v === 'no_change' ? '' : v as TicketStatus)}
+                                                    disabled={addLogMutation.isPending}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="No status change" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="no_change">No status change</SelectItem>
+                                                        {statusOptions.map((status) => (
+                                                            <SelectItem key={status} value={status}>
+                                                                Mark {statusConfig[status].label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : (
+                                                <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                                                    Status change is not available for this ticket state.
+                                                </div>
+                                            )}
                                         </div>
                                         <Button type="submit" disabled={addLogMutation.isPending}>
                                             {addLogMutation.isPending ? (
@@ -418,6 +443,51 @@ export default function TicketDetailPage() {
                                     <p className="text-xs text-slate-500">Contractor</p>
                                 </div>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* SLA */}
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm">SLA</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {ticket.sla && slaConfig ? (
+                                <div className="space-y-3 text-sm">
+                                    <Badge variant="outline" className={cn(slaConfig.className)}>
+                                        {ticket.sla.isViolated && <AlertTriangle className="w-3 h-3 mr-1" />}
+                                        {slaConfig.label}
+                                    </Badge>
+                                    <div>
+                                        <p className="text-xs text-slate-500">Due date</p>
+                                        <p className="font-medium">{new Date(ticket.sla.dueAt).toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-slate-500">Owner org</p>
+                                        <p className="font-medium">
+                                            {ticket.assignedTo?.orgName || ticket.sla.ownerOrgId || 'Unassigned'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-slate-500">Remaining time</p>
+                                        <p className={cn('font-medium', ticket.sla.isViolated && 'text-red-600')}>
+                                            {ticket.sla.status === 'RESOLVED'
+                                                ? 'Resolved'
+                                                : formatSLASeconds(ticket.sla.remainingSeconds)}
+                                        </p>
+                                    </div>
+                                    {ticket.sla.resolvedAt && (
+                                        <div>
+                                            <p className="text-xs text-slate-500">Resolved time</p>
+                                            <p className="font-medium">
+                                                {new Date(ticket.sla.resolvedAt).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-slate-500">No SLA data available</p>
+                            )}
                         </CardContent>
                     </Card>
 

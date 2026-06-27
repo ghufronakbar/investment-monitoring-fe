@@ -10,6 +10,12 @@ export type TicketStatus =
   | "RESOLVED"
   | "CLOSED";
 
+export type SLAStatus =
+  | "ON_TRACK"
+  | "SLA_WARNING"
+  | "SLA_VIOLATED"
+  | "RESOLVED";
+
 // Ticket log action enum
 export type TicketLogAction =
   | "CREATE"
@@ -21,6 +27,20 @@ export type TicketLogAction =
 export interface TicketParticipant {
   orgId: string;
   orgName: string;
+}
+
+export interface SLAReturn {
+  id: string;
+  entityType: string;
+  entityId: string;
+  state: string;
+  ownerOrgId: string | null;
+  enteredAt: string;
+  dueAt: string;
+  resolvedAt: string | null;
+  status: SLAStatus;
+  remainingSeconds: number;
+  isViolated: boolean;
 }
 
 // Ticket log entry
@@ -51,6 +71,7 @@ export interface Ticket {
   currentStatus: TicketStatus;
   creator: TicketParticipant;
   assignedTo: TicketParticipant | null;
+  sla?: SLAReturn | null;
   logs?: TicketLog[];
   createdAt: string;
   lastLogAt?: string;
@@ -73,7 +94,7 @@ export interface AssignTicketRequest {
 // Add ticket log request
 export interface AddTicketLogRequest {
   description: string;
-  newStatus?: "IN_PROGRESS" | "RESOLVED" | null;
+  newStatus?: TicketStatus | null;
   attachmentUrl?: string | null;
 }
 

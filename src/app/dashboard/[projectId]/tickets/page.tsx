@@ -10,7 +10,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useProject, useOrganization } from '@/providers';
 import { queryKeys } from '@/constants';
 import { getTickets } from '@/services';
-import type { TicketStatus, TicketFilter } from '@/types';
+import { formatSLASeconds, slaStatusConfig } from '@/lib/sla';
+import type { TicketStatus, TicketFilter, SLAReturn } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -53,15 +54,32 @@ const statusConfig: Record<TicketStatus, { label: string; variant: 'default' | '
     CLOSED: { label: 'Closed', variant: 'outline', icon: CheckCircle2 },
 };
 
+function SLABadge({ sla }: { sla?: SLAReturn | null }) {
+    if (!sla) {
+        return null;
+    }
+
+    const config = slaStatusConfig[sla.status];
+
+    return (
+        <Badge variant="outline" className={cn('shrink-0', config.className)}>
+            {config.label}
+            {sla.status !== 'RESOLVED' && (
+                <span className="ml-1 font-normal">
+                    {formatSLASeconds(sla.remainingSeconds)}
+                </span>
+            )}
+        </Badge>
+    );
+}
+
 export default function TicketsPage() {
     const { projectId } = useProject();
-    const { orgRole, isAdmin } = useOrganization();
+    const { orgRole } = useOrganization();
 
     const [filter, setFilter] = useState<TicketFilter>('');
 
     const canCreate = orgRole === 'CONTRACTOR';
-    const canAssign = orgRole === 'EXECUTING_AGENCY' && isAdmin;
-
     // Fetch tickets
     const { data: tickets, isLoading, error } = useQuery({
         queryKey: queryKeys.tickets.list(projectId!, filter),
@@ -196,6 +214,7 @@ export default function TicketsPage() {
                                                             <StatusIcon className={cn('w-3 h-3 mr-1', config.label === 'In Progress' && 'animate-spin')} />
                                                             {config.label}
                                                         </Badge>
+                                                        <SLABadge sla={ticket.sla} />
                                                     </div>
                                                     <p className="text-sm text-slate-500 mt-1 line-clamp-1">{ticket.description}</p>
                                                     <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">

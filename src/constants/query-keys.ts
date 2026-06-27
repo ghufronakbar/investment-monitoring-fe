@@ -2,6 +2,8 @@
  * Query Keys for TanStack Query
  * Centralized query key definitions for easy invalidation
  */
+import type { QueryClient } from "@tanstack/react-query";
+import type { DomainEventData, RealtimeEnvelope } from "@/types";
 
 // Query key factory pattern
 export const queryKeys = {
@@ -87,6 +89,11 @@ export const queryKeys = {
       [...queryKeys.dashboard.all, "scurve", projectId] as const,
   },
 
+  realtime: {
+    all: ["realtime"] as const,
+    connection: () => [...queryKeys.realtime.all, "connection"] as const,
+  },
+
   // Monitoring - convenience grouping
   monitoring: {
     tasks: (projectId: string) => queryKeys.tasks.tree(projectId),
@@ -137,7 +144,10 @@ export const invalidationMap = {
   progressSubmit: (projectId: string) => [
     queryKeys.progress.logs(projectId),
     queryKeys.progress.pending(projectId),
+    queryKeys.progress.scurve(projectId),
     queryKeys.tasks.tree(projectId), // Update task percentages
+    queryKeys.dashboard.stats(projectId),
+    queryKeys.dashboard.scurve(projectId),
   ],
 
   // After progress validation
@@ -165,3 +175,101 @@ export const invalidationMap = {
     queryKeys.dashboard.stats(projectId), // Update disbursed amount
   ],
 } as const;
+
+const topicProjectId = (topic: string): string | null => {
+  const match = topic.match(/^project\.([^.\s]+)/);
+  return match?.[1] ?? null;
+};
+
+const payloadString = (
+  payload: Record<string, unknown> | null,
+  key: string
+): string | null => {
+  const value = payload?.[key];
+  return typeof value === "string" ? value : null;
+};
+
+const invalidateKeys = (
+  queryClient: QueryClient,
+  keys: readonly (readonly unknown[])[]
+): void => {
+  keys.forEach((queryKey) => {
+    queryClient.invalidateQueries({ queryKey });
+  });
+};
+
+export const invalidateByRealtimeEvent = (
+  queryClient: QueryClient,
+  envelope: RealtimeEnvelope
+): void => {
+  const data = envelope.data as DomainEventData | undefined;
+  if (!data?.eventType) {
+    return;
+  }
+
+  const projectId =
+    topicProjectId(envelope.topic) ?? payloadString(data.payload, "projectId");
+
+  switch (data.eventType) {
+    case "progress.submitted":
+      if (projectId) {
+        invalidateKeys(queryClient, invalidationMap.progressSubmit(projectId));
+      } else {
+        queryClient.invalidateQueries({ queryKey: queryKeys.progress.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      }
+      break;
+
+    case "progress.validated":
+      if (projectId) {
+        invalidateKeys(queryClient, invalidationMap.progressValidate(projectId));
+      } else {
+        queryClient.invalidateQueries({ queryKey: queryKeys.progress.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      }
+      break;
+
+    case "ticket.created":
+    case "ticket.assigned":
+    case "ticket.resolved":
+    case "ticket.closed": {
+      const ticketId =
+        data.aggregateType === "ticket"
+          ? data.aggregateId
+          : payloadString(data.payload, "ticketId");
+      if (projectId) {
+        invalidateKeys(queryClient, invalidationMap.ticket(projectId, ticketId ?? undefined));
+      } else {
+        queryClient.invalidateQueries({ queryKey: queryKeys.tickets.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      }
+      break;
+    }
+
+    case "payment.approved":
+    case "payment.paid": {
+      const requestId =
+        data.aggregateType === "payment"
+          ? data.aggregateId
+          : payloadString(data.payload, "paymentRequestId");
+      if (projectId) {
+        invalidateKeys(queryClient, invalidationMap.payment(projectId, requestId ?? undefined));
+      } else {
+        queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      }
+      break;
+    }
+
+    case "organization.member.invited": {
+      const organizationId =
+        payloadString(data.payload, "organizationId") ??
+        (data.aggregateType === "organization" ? data.aggregateId : null);
+      invalidateKeys(queryClient, invalidationMap.auth);
+      invalidateKeys(queryClient, invalidationMap.organization(organizationId ?? undefined));
+      break;
+    }
+  }
+};

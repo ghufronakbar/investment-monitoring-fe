@@ -107,3 +107,8 @@ export {
   getSCurveDashboard,
   getDashboardStats,
 } from "./support/dashboard.service";
+
+// ============================================
+// Realtime Module
+// ============================================
+export { RealtimeWebSocketClient } from "./realtime";

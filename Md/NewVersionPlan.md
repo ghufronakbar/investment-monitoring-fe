@@ -458,7 +458,7 @@ src/constants/env.ts
 
 Checklist:
 
-- [ ] Tambah env optional:
+- [x] Tambah env optional:
 
 ```ts
 NEXT_PUBLIC_WS_URL
@@ -471,13 +471,13 @@ http://localhost:7777 -> ws://localhost:7777/api/realtime/ws
 https://api.example.com -> wss://api.example.com/api/realtime/ws
 ```
 
-- [ ] Tambah type realtime:
+- [x] Tambah type realtime:
   - `RealtimeEnvelope<T>`;
   - `RealtimeConnectedData`;
   - `RealtimeSubscriptionUpdatedData`;
   - `DomainEventData`;
   - event type union.
-- [ ] Buat WebSocket client:
+- [x] Buat WebSocket client:
   - connect ke `/api/realtime/ws?accessToken={accessToken}`;
   - handle `realtime.connected`;
   - support `subscribe(topics)`;
@@ -485,20 +485,32 @@ https://api.example.com -> wss://api.example.com/api/realtime/ws
   - ping interval 25-30 detik;
   - reconnect dengan exponential backoff;
   - stop reconnect saat logout.
-- [ ] Buat `RealtimeProvider` yang hidup hanya saat authenticated.
-- [ ] Subscribe default:
+- [x] Buat `RealtimeProvider` yang hidup hanya saat authenticated.
+- [x] Subscribe default:
   - `user.{userId}`.
-- [ ] Subscribe project topics sesuai halaman aktif:
+- [x] Subscribe project topics sesuai halaman aktif:
   - `project.{projectId}`;
   - `project.{projectId}.monitoring`;
   - `project.{projectId}.ticket`;
   - `project.{projectId}.finance`.
-- [ ] Saat event domain masuk, invalidasi query:
+- [x] Saat event domain masuk, invalidasi query:
   - monitoring event -> task/log/scurve/dashboard;
   - ticket event -> ticket list/detail/dashboard;
   - payment event -> payment list/detail/summary/dashboard;
   - member invited -> organization/user related.
-- [ ] Jika topic masuk `rejected`, tampilkan dev log atau silent fallback; jangan tutup koneksi.
+- [x] Jika topic masuk `rejected`, tampilkan dev log atau silent fallback; jangan tutup koneksi.
+
+Status implementasi:
+
+- `src/constants/env.ts` sekarang mendukung optional `NEXT_PUBLIC_WS_URL`; jika kosong, client derive URL dari `NEXT_PUBLIC_API_URL` ke `/api/realtime/ws`.
+- `src/types/realtime.ts` ditambahkan untuk envelope, connected data, subscription update, domain event, error/pong, dan status koneksi.
+- `src/services/realtime/websocket.service.ts` ditambahkan sebagai WebSocket client dengan `accessToken` query param, subscribe/unsubscribe, ping 28 detik, reconnect exponential backoff, dan close tanpa reconnect saat logout.
+- `src/providers/realtime-provider.tsx` hidup di bawah `AuthProvider`, connect hanya saat authenticated, subscribe `user.{userId}`, dan subscribe topic project dari pathname aktif.
+- `src/hooks/use-realtime.ts` tersedia untuk membaca status/topik realtime jika nanti perlu UI indicator.
+- `src/constants/query-keys.ts` punya `queryKeys.realtime.connection()` dan `invalidateByRealtimeEvent(queryClient, envelope)` untuk invalidasi monitoring, ticket, payment, dan organization/member event.
+- `src/app/layout.tsx` sudah membungkus aplikasi dengan `RealtimeProvider`.
+- Rejected topics hanya di-log dengan `console.debug`; koneksi tidak ditutup.
+- `npm run build` pass.
 
 Domain event penting:
 
@@ -531,13 +543,21 @@ src/constants/query-keys.ts
 
 Checklist:
 
-- [ ] Tambah `queryKeys.tasks.validation(projectId)`.
-- [ ] Tambah query keys realtime jika perlu untuk connection state.
-- [ ] Update `invalidationMap.task(projectId)` agar mencakup WBS validation.
-- [ ] Update `invalidationMap.progressSubmit(projectId)` agar mencakup dashboard dan realtime-driven invalidation.
-- [ ] Update `invalidationMap.ticket(projectId, ticketId)` agar cocok dengan SLA/dashboard.
-- [ ] Update `invalidationMap.payment(projectId, requestId)` agar summary/dashboard/list/detail selalu sinkron.
-- [ ] Buat helper `invalidateByRealtimeEvent(queryClient, envelope)`.
+- [x] Tambah `queryKeys.tasks.validation(projectId)`.
+- [x] Tambah query keys realtime jika perlu untuk connection state.
+- [x] Update `invalidationMap.task(projectId)` agar mencakup WBS validation.
+- [x] Update `invalidationMap.progressSubmit(projectId)` agar mencakup dashboard dan realtime-driven invalidation.
+- [x] Update `invalidationMap.ticket(projectId, ticketId)` agar cocok dengan SLA/dashboard.
+- [x] Update `invalidationMap.payment(projectId, requestId)` agar summary/dashboard/list/detail selalu sinkron.
+- [x] Buat helper `invalidateByRealtimeEvent(queryClient, envelope)`.
+
+Status implementasi:
+
+- `queryKeys.tasks.validation(projectId)` dan invalidasi WBS sudah masuk sejak Tahap 4.
+- `queryKeys.realtime.connection()` ditambahkan untuk status koneksi jika nanti perlu dipakai UI.
+- `invalidationMap.progressSubmit(projectId)` sekarang ikut invalidasi progress scurve dan dashboard.
+- `invalidationMap.ticket(projectId, ticketId)` dan `invalidationMap.payment(projectId, requestId)` menjadi policy yang dipakai mutation manual dan event realtime.
+- `invalidateByRealtimeEvent(queryClient, envelope)` sudah memetakan event monitoring, ticket, payment, dan organization member ke invalidasi query terkait.
 
 Definition of done:
 

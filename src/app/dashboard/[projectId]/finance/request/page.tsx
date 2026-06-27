@@ -15,6 +15,7 @@ import { useProject, useOrganization } from '@/providers';
 import { queryKeys, invalidationMap } from '@/constants';
 import { createPaymentRequest, getPaymentSummary } from '@/services';
 import { isApiError, isValidationError } from '@/lib/api';
+import { getFinanceErrorMessage } from '@/lib/finance';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,6 +79,8 @@ export default function CreatePaymentRequestPage() {
         },
     });
 
+    const watchedAmount = Number(form.watch('amount')) || 0;
+
     // Mutation
     const mutation = useMutation({
         mutationFn: (data: RequestFormData) =>
@@ -99,10 +102,27 @@ export default function CreatePaymentRequestPage() {
                     form.setError(field as keyof RequestFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getFinanceErrorMessage(error.responseMessage));
             }
         },
     });
+
+    const handleSubmit = (data: RequestFormData) => {
+        if (!summary?.canSubmit) {
+            toast.error(getFinanceErrorMessage('PENDING_REQUEST_EXISTS'));
+            return;
+        }
+
+        const available = parseFloat(summary.availableAmount);
+        if (data.amount > available) {
+            const message = getFinanceErrorMessage('AMOUNT_EXCEEDS_AVAILABLE');
+            form.setError('amount', { message });
+            toast.error(message);
+            return;
+        }
+
+        mutation.mutate(data);
+    };
 
     if (!isContractor) {
         return (
@@ -158,6 +178,7 @@ export default function CreatePaymentRequestPage() {
     }
 
     const availableAmount = parseFloat(summary.availableAmount);
+    const amountExceedsAvailable = watchedAmount > availableAmount;
 
     return (
         <div className="max-w-2xl mx-auto space-y-6">
@@ -211,7 +232,7 @@ export default function CreatePaymentRequestPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-6">
+                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
                         {/* Title */}
                         <div className="space-y-2">
                             <Label htmlFor="title">Title *</Label>
@@ -241,6 +262,11 @@ export default function CreatePaymentRequestPage() {
                             <p className="text-xs text-slate-500">
                                 Maximum: {formatCurrency(availableAmount, summary.currency)}
                             </p>
+                            {amountExceedsAvailable && (
+                                <p className="text-sm text-amber-600">
+                                    Amount exceeds available balance.
+                                </p>
+                            )}
                             {form.formState.errors.amount && (
                                 <p className="text-sm text-red-500">{form.formState.errors.amount.message}</p>
                             )}
@@ -271,7 +297,7 @@ export default function CreatePaymentRequestPage() {
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={mutation.isPending}>
+                            <Button type="submit" disabled={mutation.isPending || amountExceedsAvailable || !summary.canSubmit}>
                                 {mutation.isPending ? (
                                     <>
                                         <Spinner className="w-4 h-4 mr-2" />

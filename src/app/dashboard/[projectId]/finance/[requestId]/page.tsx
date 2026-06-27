@@ -5,7 +5,7 @@
  * Show request info with role-based approval actions
  */
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -13,12 +13,18 @@ import { useProject, useOrganization } from '@/providers';
 import { queryKeys, invalidationMap } from '@/constants';
 import { getPaymentRequestDetail, approveByAuditor, approveByAgency, disbursePayment } from '@/services';
 import { isApiError } from '@/lib/api';
+import {
+    canAgencyAct,
+    canAuditorAct,
+    canLoanProviderAct,
+    getFinanceErrorMessage,
+    isTerminalPaymentStatus,
+} from '@/lib/finance';
 import type { PaymentRequestStatus } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
     Card,
     CardContent,
@@ -35,7 +41,6 @@ import {
 } from '@/components/ui/dialog';
 import { FileUploader } from '@/components/ui/file-uploader';
 import {
-    CreditCard,
     ArrowLeft,
     Clock,
     CheckCircle2,
@@ -70,7 +75,6 @@ function formatCurrency(amount: string | number, currency = 'IDR'): string {
 }
 
 export default function PaymentRequestDetailPage() {
-    const router = useRouter();
     const params = useParams();
     const requestId = params.requestId as string;
     const queryClient = useQueryClient();
@@ -103,7 +107,7 @@ export default function PaymentRequestDetailPage() {
         },
         onError: (error) => {
             if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getFinanceErrorMessage(error.responseMessage));
             }
         },
     });
@@ -119,7 +123,7 @@ export default function PaymentRequestDetailPage() {
         },
         onError: (error) => {
             if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getFinanceErrorMessage(error.responseMessage));
             }
         },
     });
@@ -133,10 +137,11 @@ export default function PaymentRequestDetailPage() {
                 queryClient.invalidateQueries({ queryKey: key });
             });
             setDisburseDialogOpen(false);
+            setPaymentProofs([]);
         },
         onError: (error) => {
             if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getFinanceErrorMessage(error.responseMessage));
             }
         },
     });
@@ -166,11 +171,12 @@ export default function PaymentRequestDetailPage() {
     const isPending = auditorMutation.isPending || agencyMutation.isPending || disburseMutation.isPending;
     const isRejected = request.status.includes('REJECTED');
     const isPaid = request.status === 'PAID';
+    const isTerminal = isTerminalPaymentStatus(request.status);
 
     // Determine available actions
-    const showAuditorActions = canApproveAsAuditor && request.status === 'SUBMITTED';
-    const showAgencyActions = canApproveAsAgency && request.status === 'AUDITOR_APPROVED';
-    const showDisburseAction = canDisburse && request.status === 'AGENCY_APPROVED';
+    const showAuditorActions = canApproveAsAuditor && canAuditorAct(request.status);
+    const showAgencyActions = canApproveAsAgency && canAgencyAct(request.status);
+    const showDisburseAction = canDisburse && canLoanProviderAct(request.status);
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -463,6 +469,11 @@ export default function PaymentRequestDetailPage() {
                                     <div className="flex items-center gap-2 text-green-600">
                                         <CheckCircle2 className="w-5 h-5" />
                                         <span>Payment completed</span>
+                                    </div>
+                                ) : isTerminal ? (
+                                    <div className="flex items-center gap-2 text-slate-600">
+                                        <AlertTriangle className="w-5 h-5" />
+                                        <span>No further action is available</span>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2 text-yellow-600">

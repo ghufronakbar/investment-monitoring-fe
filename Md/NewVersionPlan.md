@@ -395,26 +395,40 @@ src/app/dashboard/[projectId]/finance/*
 
 Checklist:
 
-- [ ] Pastikan `PaymentSummary` dipakai sebelum submit payment request.
-- [ ] Disable submit jika `canSubmit=false`.
-- [ ] Validasi amount client-side terhadap `availableAmount`, tetapi backend tetap source of truth.
-- [ ] Setelah create/approve/disburse:
+- [x] Pastikan `PaymentSummary` dipakai sebelum submit payment request.
+- [x] Disable submit jika `canSubmit=false`.
+- [x] Validasi amount client-side terhadap `availableAmount`, tetapi backend tetap source of truth.
+- [x] Setelah create/approve/disburse:
   - invalidate payment list;
   - invalidate payment detail;
   - invalidate summary;
   - invalidate dashboard stats.
-- [ ] UI action mengikuti FSM:
+- [x] UI action mengikuti FSM:
   - `SUBMITTED`: auditor approve/reject;
   - `AUDITOR_APPROVED`: agency approve/reject;
   - `AGENCY_APPROVED`: loan provider disburse;
   - rejected/paid: terminal.
-- [ ] Tampilkan error:
+- [x] Tampilkan error:
   - `PENDING_REQUEST_EXISTS`
   - `AMOUNT_EXCEEDS_CONTRACT_VALUE`
   - `AMOUNT_EXCEEDS_AVAILABLE`
   - `INVALID_STATUS_TRANSITION`
   - `NOT_CONTRACT_AUDITOR`
   - `NOT_CONTRACT_EXECUTING_AGENCY`
+
+Status implementasi:
+
+- `src/lib/finance.ts` ditambahkan untuk mapping error finance dan helper FSM action.
+- Create payment request memakai `PaymentSummary` sebelum submit, memblokir submit saat `canSubmit=false`, dan menolak amount yang melebihi `availableAmount` sebelum request dikirim.
+- Backend tetap source of truth: error code finance dari API dimapping menjadi pesan user-facing di create/detail flow.
+- Payment request list tetap menampilkan tombol `New Request` untuk contractor, tetapi disabled ketika summary `canSubmit=false`.
+- Detail payment request memakai helper FSM:
+  - `SUBMITTED` hanya menampilkan auditor approve/reject untuk auditor;
+  - `AUDITOR_APPROVED` hanya menampilkan agency approve/reject untuk executing agency;
+  - `AGENCY_APPROVED` hanya menampilkan disburse untuk loan provider;
+  - rejected/paid dianggap terminal.
+- Mutasi create/approve/reject/disburse memakai `invalidationMap.payment`, sehingga list, detail, summary, dan dashboard stats ikut di-refresh.
+- `npm run build` pass.
 
 Definition of done:
 

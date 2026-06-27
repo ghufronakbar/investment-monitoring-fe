@@ -90,6 +90,7 @@ export default function PaymentRequestsPage() {
     const progressPercent = summary
         ? (parseFloat(summary.paidAmount) / parseFloat(summary.contractValue)) * 100
         : 0;
+    const canSubmitRequest = Boolean(summary?.canSubmit);
 
     return (
         <div className="space-y-6">
@@ -102,13 +103,20 @@ export default function PaymentRequestsPage() {
                     </h1>
                     <p className="text-slate-600">Manage disbursement requests and approvals</p>
                 </div>
-                {canCreate && summary?.canSubmit && (
-                    <Link href={`/dashboard/${projectId}/finance/request`}>
-                        <Button>
+                {canCreate && (
+                    canSubmitRequest ? (
+                        <Link href={`/dashboard/${projectId}/finance/request`}>
+                            <Button>
+                                <Plus className="w-4 h-4 mr-2" />
+                                New Request
+                            </Button>
+                        </Link>
+                    ) : (
+                        <Button disabled>
                             <Plus className="w-4 h-4 mr-2" />
                             New Request
                         </Button>
-                    </Link>
+                    )
                 )}
             </div>
 
@@ -144,6 +152,11 @@ export default function PaymentRequestsPage() {
                             </div>
                             <Progress value={progressPercent} className="h-2" />
                         </div>
+                        {canCreate && !summary.canSubmit && (
+                            <p className="mt-3 text-sm text-amber-600">
+                                New requests are disabled while a request is pending or no amount is available.
+                            </p>
+                        )}
                     </CardContent>
                 </Card>
             )}

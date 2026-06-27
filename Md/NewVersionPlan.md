@@ -248,7 +248,7 @@ src/app/dashboard/[projectId]/monitoring/tasks/[taskId]/edit/page.tsx
 
 Checklist:
 
-- [ ] Tambah type:
+- [x] Tambah type:
 
 ```ts
 export interface WBSValidation {
@@ -259,26 +259,37 @@ export interface WBSValidation {
 }
 ```
 
-- [ ] Tambah service:
+- [x] Tambah service:
 
 ```ts
 getWBSValidation(projectId: string): Promise<WBSValidation>
 ```
 
-- [ ] Tambah query key:
+- [x] Tambah query key:
 
 ```ts
 queryKeys.tasks.validation(projectId)
 ```
 
-- [ ] Invalidate validation setelah create/update/delete task.
-- [ ] Tambah panel status WBS di halaman task:
+- [x] Invalidate validation setelah create/update/delete task.
+- [x] Tambah panel status WBS di halaman task:
   - total root weight;
   - total leaf weight;
   - valid/invalid badge;
   - daftar error.
-- [ ] Tambah inline warning di form create/edit sebelum submit jika sibling/root/leaf weight berpotensi >100.
-- [ ] Tetap handle error backend sebagai source of truth.
+- [x] Tambah inline warning di form create/edit sebelum submit jika sibling/root/leaf weight berpotensi >100.
+- [x] Tetap handle error backend sebagai source of truth.
+
+Status implementasi:
+
+- `src/types/monitoring.ts` sekarang punya `WBSValidation`.
+- `src/services/monitoring/task.service.ts` sekarang punya `getWBSValidation(projectId)` untuk `GET /monitoring/project/{projectId}/wbs/validation`.
+- `src/constants/query-keys.ts` sekarang punya `queryKeys.tasks.validation(projectId)` dan `invalidationMap.task(projectId)` ikut meng-invalidate validation.
+- `src/lib/wbs.ts` ditambahkan untuk mapping error code WBS dan warning lokal root/sibling/leaf weight.
+- Halaman `monitoring/tasks` menampilkan panel WBS Integrity dengan total root weight, total leaf weight, badge valid/invalid, dan daftar error dari backend.
+- Dialog create task, halaman create task, dan halaman edit task menampilkan warning lokal sebelum submit ketika perubahan berpotensi membuat root/sibling/leaf weight melebihi 100%.
+- Mutation create/update/delete tetap memakai backend sebagai source of truth dan menampilkan pesan error WBS yang lebih jelas.
+- `npm run build` pass.
 
 Error code yang perlu mapping:
 

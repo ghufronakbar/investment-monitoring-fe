@@ -25,6 +25,13 @@ export interface TasksTreeResponse {
   totalWeight: number;
 }
 
+export interface WBSValidation {
+  isValid: boolean;
+  totalRootWeight: number;
+  totalLeafWeight: number;
+  errors: string[];
+}
+
 // Create task request
 export interface CreateTaskRequest {
   title: string;

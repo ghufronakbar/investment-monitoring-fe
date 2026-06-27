@@ -12,9 +12,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { useProject, useOrganization } from '@/providers';
-import { queryKeys } from '@/constants';
+import { invalidationMap, queryKeys } from '@/constants';
 import { updateTask, getTasks } from '@/services';
 import { isApiError, isValidationError } from '@/lib/api';
+import { getWBSErrorMessage, getWBSWeightWarning } from '@/lib/wbs';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +36,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
-import { ArrowLeft, Edit } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Edit } from 'lucide-react';
 import Link from 'next/link';
 import type { TaskItem } from '@/types';
 import { useEffect } from 'react';
@@ -121,6 +122,17 @@ export default function EditTaskPage() {
         }
     }, [task, form]);
 
+    const selectedParentId = form.watch('parentId') || null;
+    const watchedWeight = Number(form.watch('weight')) || 0;
+    const weightWarning = tasksData?.tasks && task
+        ? getWBSWeightWarning({
+            tasks: tasksData.tasks,
+            weight: watchedWeight,
+            parentId: selectedParentId,
+            excludeTask: task,
+        })
+        : null;
+
     // Mutation
     const mutation = useMutation({
         mutationFn: (data: TaskFormData) =>
@@ -133,7 +145,9 @@ export default function EditTaskPage() {
             }),
         onSuccess: () => {
             toast.success('Task updated successfully!');
-            queryClient.invalidateQueries({ queryKey: queryKeys.monitoring.tasks(projectId!) });
+            invalidationMap.task(projectId!).forEach((key) => {
+                queryClient.invalidateQueries({ queryKey: key });
+            });
             router.push(`/dashboard/${projectId}/monitoring/tasks`);
         },
         onError: (error) => {
@@ -142,7 +156,7 @@ export default function EditTaskPage() {
                     form.setError(field as keyof TaskFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getWBSErrorMessage(error.responseMessage));
             }
         },
     });
@@ -297,6 +311,13 @@ export default function EditTaskPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        {weightWarning && (
+                            <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                                <span>{weightWarning}</span>
+                            </div>
+                        )}
 
                         {/* Actions */}
                         <div className="flex gap-4 pt-4">

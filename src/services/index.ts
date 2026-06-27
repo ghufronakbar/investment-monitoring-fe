@@ -60,6 +60,7 @@ export {
   createTask,
   getTasks,
   getLeafTasks,
+  getWBSValidation,
   updateTask,
   deleteTask,
 } from "./monitoring/task.service";

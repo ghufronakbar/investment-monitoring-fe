@@ -39,6 +39,8 @@ export const queryKeys = {
       [...queryKeys.tasks.all, "tree", projectId] as const,
     leaf: (projectId: string) =>
       [...queryKeys.tasks.all, "leaf", projectId] as const,
+    validation: (projectId: string) =>
+      [...queryKeys.tasks.all, "validation", projectId] as const,
     detail: (taskId: string) =>
       [...queryKeys.tasks.all, "detail", taskId] as const,
   },
@@ -88,6 +90,8 @@ export const queryKeys = {
   // Monitoring - convenience grouping
   monitoring: {
     tasks: (projectId: string) => queryKeys.tasks.tree(projectId),
+    taskValidation: (projectId: string) =>
+      queryKeys.tasks.validation(projectId),
     leafTasks: (projectId: string) => queryKeys.tasks.leaf(projectId),
     logs: (projectId: string) => queryKeys.progress.logs(projectId),
     pending: (projectId: string) => queryKeys.progress.pending(projectId),
@@ -123,6 +127,7 @@ export const invalidationMap = {
   task: (projectId: string) => [
     queryKeys.tasks.tree(projectId),
     queryKeys.tasks.leaf(projectId),
+    queryKeys.tasks.validation(projectId),
     queryKeys.progress.scurve(projectId),
     queryKeys.dashboard.stats(projectId),
     queryKeys.dashboard.scurve(projectId),

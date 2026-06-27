@@ -13,9 +13,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { useProject, useOrganization } from '@/providers';
-import { queryKeys } from '@/constants';
-import { getTasks, createTask, deleteTask } from '@/services';
+import { invalidationMap, queryKeys } from '@/constants';
+import { getTasks, createTask, deleteTask, getWBSValidation } from '@/services';
 import { isApiError, isValidationError } from '@/lib/api';
+import { getWBSErrorMessage, getWBSWeightWarning } from '@/lib/wbs';
 import type { TaskItem } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -59,6 +60,7 @@ import {
     Calendar,
     Weight,
     CheckCircle2,
+    AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -105,6 +107,21 @@ export default function TasksPage() {
         enabled: !!projectId,
     });
 
+    const { data: wbsValidation } = useQuery({
+        queryKey: queryKeys.tasks.validation(projectId!),
+        queryFn: () => getWBSValidation(projectId!),
+        enabled: !!projectId,
+    });
+
+    const watchedWeight = Number(form.watch('weight')) || 0;
+    const createWeightWarning = data?.tasks
+        ? getWBSWeightWarning({
+            tasks: data.tasks,
+            weight: watchedWeight,
+            parentId: parentTask?.id ?? null,
+        })
+        : null;
+
     // Create task mutation
     const createMutation = useMutation({
         mutationFn: (data: TaskFormData) =>
@@ -117,7 +134,9 @@ export default function TasksPage() {
             }),
         onSuccess: () => {
             toast.success(parentTask ? 'Subtask created successfully!' : 'Task created successfully!');
-            queryClient.invalidateQueries({ queryKey: queryKeys.monitoring.tasks(projectId!) });
+            invalidationMap.task(projectId!).forEach((key) => {
+                queryClient.invalidateQueries({ queryKey: key });
+            });
             closeCreateDialog();
         },
         onError: (error) => {
@@ -126,7 +145,7 @@ export default function TasksPage() {
                     form.setError(field as keyof TaskFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getWBSErrorMessage(error.responseMessage));
             }
         },
     });
@@ -136,11 +155,17 @@ export default function TasksPage() {
         mutationFn: (taskId: string) => deleteTask(taskId),
         onSuccess: () => {
             toast.success('Task deleted successfully');
-            queryClient.invalidateQueries({ queryKey: queryKeys.monitoring.tasks(projectId!) });
+            invalidationMap.task(projectId!).forEach((key) => {
+                queryClient.invalidateQueries({ queryKey: key });
+            });
             setDeleteTarget(null);
         },
-        onError: (error: Error) => {
-            toast.error(error.message);
+        onError: (error) => {
+            if (isApiError(error)) {
+                toast.error(getWBSErrorMessage(error.responseMessage));
+            } else if (error instanceof Error) {
+                toast.error(error.message);
+            }
         },
     });
 
@@ -387,6 +412,54 @@ export default function TasksPage() {
                 </CardContent>
             </Card>
 
+            {/* WBS Integrity */}
+            <Card>
+                <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <CardTitle className="text-base">WBS Integrity</CardTitle>
+                            <CardDescription>
+                                Backend validation for root, leaf, sibling, orphan, and cycle constraints
+                            </CardDescription>
+                        </div>
+                        <Badge
+                            variant={wbsValidation?.isValid ? 'default' : 'destructive'}
+                            className={wbsValidation?.isValid ? 'bg-green-600' : undefined}
+                        >
+                            {wbsValidation?.isValid ? (
+                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                            ) : (
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                            )}
+                            {wbsValidation?.isValid ? 'Valid' : 'Invalid'}
+                        </Badge>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-2xl font-bold">{wbsValidation?.totalRootWeight ?? 0}%</p>
+                            <p className="text-xs text-slate-500">Total Root Weight</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold">{wbsValidation?.totalLeafWeight ?? 0}%</p>
+                            <p className="text-xs text-slate-500">Total Leaf Weight</p>
+                        </div>
+                    </div>
+
+                    {wbsValidation?.errors && wbsValidation.errors.length > 0 && (
+                        <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                            <p className="text-sm font-medium text-red-700">Validation issues</p>
+                            <ul className="mt-2 space-y-1 text-sm text-red-700">
+                                {wbsValidation.errors.map((item) => (
+                                    <li key={item}>{getWBSErrorMessage(item)}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             {/* Task Tree */}
             <Card>
                 <CardHeader>
@@ -491,6 +564,12 @@ export default function TasksPage() {
                                 )}
                             </div>
                         </div>
+
+                        {createWeightWarning && (
+                            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                {createWeightWarning}
+                            </div>
+                        )}
 
                         {/* Actions */}
                         <div className="flex gap-4 pt-2">

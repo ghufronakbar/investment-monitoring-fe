@@ -12,9 +12,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { useProject, useOrganization } from '@/providers';
-import { queryKeys } from '@/constants';
+import { invalidationMap, queryKeys } from '@/constants';
 import { createTask, getTasks } from '@/services';
 import { isApiError, isValidationError } from '@/lib/api';
+import { getWBSErrorMessage, getWBSWeightWarning } from '@/lib/wbs';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +36,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Plus } from 'lucide-react';
 import Link from 'next/link';
 import type { TaskItem } from '@/types';
 
@@ -64,7 +65,7 @@ function flattenTasks(tasks: TaskItem[], prefix = ''): { id: string; label: stri
 export default function CreateTaskPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
-    const { projectId, project } = useProject();
+    const { projectId } = useProject();
     const { orgRole, isAdmin } = useOrganization();
 
     const canCreate = orgRole === 'EXECUTING_AGENCY' && isAdmin;
@@ -91,6 +92,16 @@ export default function CreateTaskPage() {
         },
     });
 
+    const selectedParentId = form.watch('parentId') || null;
+    const watchedWeight = Number(form.watch('weight')) || 0;
+    const weightWarning = tasksData?.tasks
+        ? getWBSWeightWarning({
+            tasks: tasksData.tasks,
+            weight: watchedWeight,
+            parentId: selectedParentId,
+        })
+        : null;
+
     // Mutation
     const mutation = useMutation({
         mutationFn: (data: TaskFormData) =>
@@ -103,7 +114,9 @@ export default function CreateTaskPage() {
             }),
         onSuccess: () => {
             toast.success('Task created successfully!');
-            queryClient.invalidateQueries({ queryKey: queryKeys.monitoring.tasks(projectId!) });
+            invalidationMap.task(projectId!).forEach((key) => {
+                queryClient.invalidateQueries({ queryKey: key });
+            });
             router.push(`/dashboard/${projectId}/monitoring/tasks`);
         },
         onError: (error) => {
@@ -112,7 +125,7 @@ export default function CreateTaskPage() {
                     form.setError(field as keyof TaskFormData, { message });
                 });
             } else if (isApiError(error)) {
-                toast.error(error.responseMessage);
+                toast.error(getWBSErrorMessage(error.responseMessage));
             }
         },
     });
@@ -251,6 +264,13 @@ export default function CreateTaskPage() {
                                 Select a parent task to create a sub-task
                             </p>
                         </div>
+
+                        {weightWarning && (
+                            <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                                <span>{weightWarning}</span>
+                            </div>
+                        )}
 
                         {/* Actions */}
                         <div className="flex gap-4 pt-4">

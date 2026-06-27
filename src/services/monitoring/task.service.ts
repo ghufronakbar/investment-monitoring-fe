@@ -8,6 +8,7 @@ import type {
   TasksTreeResponse,
   CreateTaskRequest,
   UpdateTaskRequest,
+  WBSValidation,
 } from "@/types";
 
 /**
@@ -35,6 +36,17 @@ export const getTasks = async (
  */
 export const getLeafTasks = async (projectId: string): Promise<TaskItem[]> => {
   return api.get<TaskItem[]>(`/monitoring/project/${projectId}/task/leaf`);
+};
+
+/**
+ * Validate WBS integrity for a project.
+ */
+export const getWBSValidation = async (
+  projectId: string
+): Promise<WBSValidation> => {
+  return api.get<WBSValidation>(
+    `/monitoring/project/${projectId}/wbs/validation`
+  );
 };
 
 /**

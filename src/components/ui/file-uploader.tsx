@@ -9,7 +9,9 @@ import { useState, useRef, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { uploadSingle, uploadMultiple } from '@/services';
+import { isApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import type { UploadOptions, UploadResponse } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import {
@@ -25,10 +27,19 @@ import {
 export type FileType = 'image' | 'pdf' | 'all';
 
 export interface UploadedFile {
+    id?: string;
     url: string;
     publicId: string;
     format: string;
     fileName: string;
+    mimeType?: string;
+    size?: number;
+    checksum?: string;
+    uploadedByUserId?: string;
+    uploadedByOrgId?: string | null;
+    entityType?: string | null;
+    entityId?: string | null;
+    createdAt?: string;
 }
 
 interface FileUploaderProps {
@@ -38,6 +49,7 @@ interface FileUploaderProps {
     value?: string | string[];
     onChange?: (value: string | string[]) => void;
     onUpload?: (files: UploadedFile | UploadedFile[]) => void;
+    uploadOptions?: UploadOptions;
     disabled?: boolean;
     className?: string;
     placeholder?: string;
@@ -64,6 +76,46 @@ function getFileIcon(format: string) {
     return <FileText className="w-4 h-4 text-red-500" />;
 }
 
+const UPLOAD_ERROR_MESSAGES: Record<string, string> = {
+    FILE_EMPTY: 'The selected file is empty.',
+    FILE_REQUIRED: 'Please select a file to upload.',
+    FILE_TOO_LARGE: 'The selected file is too large.',
+    FILE_TOO_LARGE_5MB_MAX: 'File too large. Maximum 5MB allowed.',
+    INVALID_FILE_TYPE: 'Invalid file type. Only JPG, PNG, and PDF files are allowed.',
+    USER_NOT_MEMBER_OF_ORGANIZATION: 'You are not a member of the selected organization.',
+    ENTITY_TYPE_AND_ENTITY_ID_REQUIRED_TOGETHER: 'Upload entity type and entity ID must be provided together.',
+};
+
+function getUploadErrorMessage(error: unknown): string {
+    if (isApiError(error)) {
+        return UPLOAD_ERROR_MESSAGES[error.responseMessage] || error.responseMessage;
+    }
+
+    if (error instanceof Error) {
+        return UPLOAD_ERROR_MESSAGES[error.message] || error.message;
+    }
+
+    return 'Failed to upload file';
+}
+
+function mapUploadedFile(data: UploadResponse, fallbackFileName?: string): UploadedFile {
+    return {
+        id: data.id,
+        url: data.url,
+        publicId: data.publicId,
+        format: data.format,
+        fileName: data.fileName || fallbackFileName || 'File',
+        mimeType: data.mimeType,
+        size: data.size,
+        checksum: data.checksum,
+        uploadedByUserId: data.uploadedByUserId,
+        uploadedByOrgId: data.uploadedByOrgId ?? null,
+        entityType: data.entityType ?? null,
+        entityId: data.entityId ?? null,
+        createdAt: data.createdAt,
+    };
+}
+
 export function FileUploader({
     mode,
     accept = 'all',
@@ -71,6 +123,7 @@ export function FileUploader({
     value,
     onChange,
     onUpload,
+    uploadOptions,
     disabled = false,
     className,
     placeholder,
@@ -89,42 +142,34 @@ export function FileUploader({
 
     // Single file upload mutation
     const singleMutation = useMutation({
-        mutationFn: uploadSingle,
+        mutationFn: (file: File) => uploadSingle(file, uploadOptions),
         onSuccess: (data, file) => {
-            const uploaded: UploadedFile = {
-                url: data.url,
-                publicId: data.publicId,
-                format: data.format,
-                fileName: (file as File).name,
-            };
+            const uploaded = mapUploadedFile(data, file.name);
             setUploadedFiles([uploaded]);
             onChange?.(data.url);
             onUpload?.(uploaded);
             toast.success('File uploaded successfully');
         },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to upload file');
+        onError: (error) => {
+            toast.error(getUploadErrorMessage(error));
         },
     });
 
     // Multiple files upload mutation
     const multipleMutation = useMutation({
-        mutationFn: uploadMultiple,
+        mutationFn: (files: File[]) => uploadMultiple(files, uploadOptions),
         onSuccess: (data, files) => {
-            const newFiles: UploadedFile[] = data.map((d, i) => ({
-                url: d.url,
-                publicId: d.publicId,
-                format: d.format,
-                fileName: (files as File[])[i]?.name || 'File',
-            }));
+            const newFiles = data.map((item, index) =>
+                mapUploadedFile(item, files[index]?.name)
+            );
             const allFiles = [...uploadedFiles, ...newFiles];
             setUploadedFiles(allFiles);
             onChange?.(allFiles.map((f) => f.url));
             onUpload?.(newFiles);
             toast.success(`${data.length} file(s) uploaded successfully`);
         },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to upload files');
+        onError: (error) => {
+            toast.error(getUploadErrorMessage(error));
         },
     });
 
@@ -299,6 +344,11 @@ export function FileUploader({
                             {/* File info */}
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate">{file.fileName}</p>
+                                {typeof file.size === 'number' && (
+                                    <p className="text-xs text-slate-500">
+                                        {formatFileSize(file.size)}
+                                    </p>
+                                )}
                                 <a
                                     href={file.url}
                                     target="_blank"

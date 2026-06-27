@@ -4,9 +4,25 @@
 
 // Upload response
 export interface UploadResponse {
+  id: string;
   publicId: string;
   url: string;
   format: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  checksum: string;
+  uploadedByUserId: string;
+  uploadedByOrgId?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  createdAt: string;
+}
+
+export interface UploadOptions {
+  organizationId?: string;
+  entityType?: string;
+  entityId?: string;
 }
 
 // S-Curve data point

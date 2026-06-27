@@ -176,7 +176,7 @@ src/components/ui/file-uploader.tsx
 
 Checklist:
 
-- [ ] Update `UploadResponse`:
+- [x] Update `UploadResponse`:
 
 ```ts
 export interface UploadResponse {
@@ -196,7 +196,7 @@ export interface UploadResponse {
 }
 ```
 
-- [ ] Tambah upload options:
+- [x] Tambah upload options:
 
 ```ts
 interface UploadOptions {
@@ -206,16 +206,26 @@ interface UploadOptions {
 }
 ```
 
-- [ ] `uploadSingle(file, options?)` append `organizationId`, `entityType`, `entityId` bila ada.
-- [ ] `uploadMultiple(files, options?)` append field yang sama.
-- [ ] Pastikan `entityType` dan `entityId` selalu dikirim bersama.
-- [ ] UI uploader menampilkan error:
+- [x] `uploadSingle(file, options?)` append `organizationId`, `entityType`, `entityId` bila ada.
+- [x] `uploadMultiple(files, options?)` append field yang sama.
+- [x] Pastikan `entityType` dan `entityId` selalu dikirim bersama.
+- [x] UI uploader menampilkan error:
   - `FILE_EMPTY`
   - `INVALID_FILE_TYPE`
   - `FILE_TOO_LARGE_5MB_MAX`
   - `USER_NOT_MEMBER_OF_ORGANIZATION`
   - `ENTITY_TYPE_AND_ENTITY_ID_REQUIRED_TOGETHER`
-- [ ] Tetap pakai `url` sebagai value utama untuk form lama agar tidak breaking.
+- [x] Tetap pakai `url` sebagai value utama untuk form lama agar tidak breaking.
+
+Status implementasi:
+
+- `src/types/support.ts` sekarang mengikuti response metadata backend: file id, public id, url, format, file name, mime type, size, checksum, uploader user/org, entity binding, dan created at.
+- `UploadOptions` tersedia untuk `organizationId`, `entityType`, dan `entityId`.
+- `src/services/support/upload.service.ts` sekarang menerima `options?`, append metadata ke `FormData`, dan memvalidasi `entityType`/`entityId` harus dikirim bersama.
+- Upload service memakai `apiRequest` agar error backend tetap menjadi `ApiError` dan bisa dibaca UI.
+- `src/components/ui/file-uploader.tsx` menerima prop `uploadOptions`, meneruskan metadata ke service, memetakan error code upload ke pesan yang jelas, dan tetap mengembalikan URL lewat `onChange`.
+- Callback `onUpload` sekarang membawa metadata file penuh melalui `UploadedFile`, tanpa mematahkan pemakai lama.
+- `npm run build` pass.
 
 Definition of done:
 

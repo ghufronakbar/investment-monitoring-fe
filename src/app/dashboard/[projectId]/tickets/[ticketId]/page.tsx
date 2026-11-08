@@ -77,16 +77,19 @@ const logSchema = z.object({
 
 type LogFormData = z.infer<typeof logSchema>;
 
+// Mirrors the backend tracker FSM: OPEN moves only via assignment and CLOSED
+// only via the close action, so neither offers a status change here.
 const getStatusOptions = (status: TicketStatus): TicketStatus[] => {
-    if (status === 'CLOSED') {
-        return [];
+    switch (status) {
+        case 'ASSIGNED':
+            return ['IN_PROGRESS'];
+        case 'IN_PROGRESS':
+            return ['RESOLVED'];
+        case 'RESOLVED':
+            return ['IN_PROGRESS'];
+        default:
+            return [];
     }
-
-    if (status === 'RESOLVED') {
-        return ['IN_PROGRESS'];
-    }
-
-    return ['IN_PROGRESS', 'RESOLVED'].filter((item) => item !== status) as TicketStatus[];
 };
 
 export default function TicketDetailPage() {

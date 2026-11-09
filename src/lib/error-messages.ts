@@ -76,6 +76,8 @@ export const TRACKER_ERROR_MESSAGES: Record<string, string> = {
   INVALID_STATUS_VALUE: "Selected ticket status is not valid.",
   INVALID_STATUS_TRANSITION:
     "This action is not valid for the current ticket status.",
+  CLOSE_VIA_CLOSE_ENDPOINT:
+    "Tickets can only be closed by the executing agency using the close action.",
   NOT_ASSIGNED_TICKET_OWNER:
     "Only the assigned organization can update this ticket.",
 };
